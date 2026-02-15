@@ -7,29 +7,30 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to Azure VM
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH
+      - name: Copy Files to Azure VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.AZURE_VM_HOST }}
+          username: ${{ secrets.AZURE_VM_USER }}
+          key: ${{ secrets.AZURE_VM_SSH_KEY }}
+          source: "."
+          target: "/home/${{ secrets.AZURE_VM_USER }}/website"
+
+      - name: Move Files to Nginx Folder
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.AZURE_VM_HOST }}
           username: ${{ secrets.AZURE_VM_USER }}
           key: ${{ secrets.AZURE_VM_SSH_KEY }}
           script: |
-            echo "Connected to Azure VM"
-
-            # Remove old website files
             sudo rm -rf /var/www/html/*
-
-            # Copy new files from repo
-            sudo cp -r * /var/www/html/
-
-            # Restart nginx
+            sudo cp -r /home/${{ secrets.AZURE_VM_USER }}/website/* /var/www/html/
+            sudo chown -R www-data:www-data /var/www/html
+            sudo chmod -R 755 /var/www/html
             sudo systemctl restart nginx
-
-            echo "Deployment Completed Successfully"
